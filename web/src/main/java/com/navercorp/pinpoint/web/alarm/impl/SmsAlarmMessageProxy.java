@@ -1,12 +1,9 @@
 package com.navercorp.pinpoint.web.alarm.impl;
 
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.List;
+import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeansException;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
@@ -16,18 +13,17 @@ import com.alibaba.dubbo.config.ReferenceConfig;
 import com.alibaba.dubbo.config.RegistryConfig;
 import com.bosssoft.itfinance.citizen.sms.dubboservice.ISmsDubboService;
 import com.bosssoft.itfinance.citizen.sms.dubboservice.req.SmsReq;
-import com.navercorp.pinpoint.web.alarm.AlarmMessageSender;
-import com.navercorp.pinpoint.web.alarm.checker.AlarmChecker;
-import com.navercorp.pinpoint.web.service.UserGroupService;
 
+/**
+ * 短信预警
+ *
+ */
 @Component
-public class AlarmMessageSenderImple implements AlarmMessageSender, ApplicationContextAware
+public class SmsAlarmMessageProxy implements ApplicationContextAware, AlarmMessageProxy
 {
     private final Logger     logger = LoggerFactory.getLogger(this.getClass());
-    @Autowired
-    private UserGroupService userGroupService;
     private ISmsDubboService smsDubboService;
-    @Value("${dubbo.registry.address:172.18.169.18:12181}")
+    @Value("${dubbo.registry.address:1.1.1.1}")
     private String           address;
     @Value("${dubbo.registry.protocol:zookeeper}")
     private String           protocol;
@@ -35,51 +31,41 @@ public class AlarmMessageSenderImple implements AlarmMessageSender, ApplicationC
     private String           version;
     @Value("${dubbo.sms.group:}")
     private String           group;
+    @Value("${alarm.sms.switch}")
+    private boolean          SWITCH;
     
-    @SuppressWarnings("rawtypes")
     @Override
-    public void sendSms(AlarmChecker checker, int sequenceCount)
+    public void sendMessage(String number, String message)
     {
-        List<String> receivers = userGroupService.selectPhoneNumberOfMember(checker.getuserGroupId());
-        if (receivers.size() == 0)
+        if (SWITCH==false)
         {
             return;
         }
-        for (Object message : checker.getSmsMessage())
+        SmsReq sms = new SmsReq();
+        sms.setContent((String) message);
+        sms.setMobile(number);
+        sms.setMsgType("pinpoint");
+        sms.setSender("pinpoint");
+        sms.setSendTime(DateTime.now().toString("yyyyMMddHHmmss"));
+        try
         {
-            logger.info("send SMS : {}", message);
-            SimpleDateFormat df = new SimpleDateFormat("yyyyMMddHHmmss");
-            for (String phoneNumber : receivers)
-            {
-                SmsReq sms = new SmsReq();
-                sms.setContent((String) message);
-                sms.setMobile(phoneNumber);
-                sms.setMsgType("pinpoint");
-                sms.setSender("pinpoint");
-                sms.setSendTime(df.format(new Date()));
-                try
-                {
-                    smsDubboService.sendSms(sms);
-                    logger.info("{},发送成功", sms);
-                }
-                catch (Exception e)
-                {
-                    logger.error("{},发送异常", sms, e);
-                }
-            }
+            smsDubboService.sendSms(sms);
+            logger.info("{},发送成功", sms);
         }
-    }
-    
-    @SuppressWarnings("rawtypes")
-    @Override
-    public void sendEmail(AlarmChecker checker, int sequenceCount)
-    {
-        logger.debug("邮件发送,尚未实现");
+        catch (Exception e)
+        {
+            logger.error("{},发送异常", sms, e);
+        }
     }
     
     @Override
     public void setApplicationContext(ApplicationContext arg0) throws BeansException
     {
+        if (SWITCH==false)
+        {
+            return;
+        }
+        logger.info("初始化短信");
         ApplicationConfig application = new ApplicationConfig();
         application.setLogger("slf4j");
         application.setName("yyy");
@@ -96,6 +82,7 @@ public class AlarmMessageSenderImple implements AlarmMessageSender, ApplicationC
         reference.setTimeout(1000 * 30);
         reference.setRetries(0);
         smsDubboService = reference.get();
-        logger.debug("初始化短信service成功");
+        logger.info("初始化短信service成功");
     }
+    
 }
