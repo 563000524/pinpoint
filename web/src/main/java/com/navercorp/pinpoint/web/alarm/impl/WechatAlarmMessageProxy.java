@@ -18,6 +18,8 @@ public class WechatAlarmMessageProxy implements ApplicationContextAware, AlarmMe
     private WorkWechatService workWechatService;
     @Value("${alarm.workwechat.switch}")
     private boolean           SWITCH;
+    @Value("${alarm.title:[福州电子缴费平台]\n}")
+    private String                  title;
     
     @Override
     public void sendMessage(String number, String message)
@@ -38,8 +40,8 @@ public class WechatAlarmMessageProxy implements ApplicationContextAware, AlarmMe
             return;
         }
         logger.info("初始化微信service成功");
-        workWechatService.sendAppMessage("pinpoint重启成功");
-        workWechatService.sendBOTMessage("pinpoint重启成功");
+        workWechatService.sendAppMessage(title+"pinpoint启动成功");
+        workWechatService.sendBOTMessage(title+"pinpoint启动成功");
     }
     
 }

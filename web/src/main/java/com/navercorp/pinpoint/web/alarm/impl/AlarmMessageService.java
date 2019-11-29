@@ -4,6 +4,7 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import com.navercorp.pinpoint.web.alarm.AlarmMessageSender;
 import com.navercorp.pinpoint.web.alarm.checker.AlarmChecker;
@@ -19,12 +20,14 @@ public class AlarmMessageService implements AlarmMessageSender
     private final Logger            logger = LoggerFactory.getLogger(this.getClass());
     @Autowired
     private UserGroupService        userGroupService;
-    //企业微信代理
+    // 企业微信代理
     @Autowired
     private WechatAlarmMessageProxy wechatAlarmMessageProxy;
-    //短信机代理
+    // 短信机代理
     @Autowired
     private SmsAlarmMessageProxy    smsAlarmMessageProxy;
+    @Value("${alarm.title:[福州电子缴费平台]\n}")
+    private String                  title;
     
     @SuppressWarnings("rawtypes")
     @Override
@@ -40,9 +43,9 @@ public class AlarmMessageService implements AlarmMessageSender
             logger.info("send SMS : {}", message);
             for (String phoneNumber : receivers)
             {
-                smsAlarmMessageProxy.sendMessage(phoneNumber, (String) message);
+                smsAlarmMessageProxy.sendMessage(phoneNumber, title + (String) message);
             }
-            wechatAlarmMessageProxy.sendMessage("", (String) message);
+            wechatAlarmMessageProxy.sendMessage("", title + (String) message);
         }
     }
     
